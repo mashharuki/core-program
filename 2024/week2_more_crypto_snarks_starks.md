@@ -28,15 +28,15 @@ Read this article for a more in-depth mathematical look into how it works (optio
 If you prefer to read some code, check out this article:
 - [Explaining KZG Commitment with Code Walkthrough by Kai Jun Eer](https://kaijuneer.medium.com/explaining-kzg-commitment-with-code-walkthrough-216638a620c9)
 
-### Trusted Setups
+### Trusted Setup
 
-Trusted setups is a process to generate a bunch of different points on elliptic curve. You can use these points with polynomial commitment schemes. Each point has same generator but different power. You can use these points to represent the variable terms in the polynomial. Therefore, the result of the polynomial commitment scheme with trusted setup is also a point on the elliptic curve. [Read this article by inevitable Ethereum to understand the concept better](https://www.inevitableeth.com/en/home/concepts/pcs-trusted-setup)
+Trusted setup is a process to generate a bunch of different points on elliptic curve. You can use these points with polynomial commitment schemes. Each point has same generator but different power. You can use these points to represent the variable terms in the polynomial. Therefore, the result of the polynomial commitment scheme with trusted setup is also a point on the elliptic curve. [Read this article by inevitable Ethereum to understand the concept better](https://www.inevitableeth.com/en/home/concepts/pcs-trusted-setup)
 
 ### STARKs and SNARKs
 
 STARKs and SNARKs are two types of zero-knowledge proofs system. The proof system requires witness, initial statement, circuit. We'll explain them in the next section. Normally the proof generated is a bunch of byte and it's a few mathematic objects. The proof can be verified by the verifier by running some verification functions on these mathematic objects.
 
-zkSTARK and zkSNARK are in fact adjectives. They describe the type of proof system. It doesn't necessarily need to be zk. You don't need to know the detail of how they work at the moment, but you need to know they are adjective to describe the proof system and when we say Blah Blah is a zkSNARKs, it means it's a proof system that requires a prover and a verifier, and the prover can prove something to the verifier without revealing the information.
+zkSTARK and zkSNARK are in fact adjectives. They describe the type of proof system. It doesn't necessarily need to be zk. You don't need to know the detail of how they work at the moment, but you need to know they are adjective to describe the proof system and when we say Blah is a zkSNARKs, it means it's a proof system that requires a prover and a verifier, and the prover can prove something to the verifier without revealing the information.
 
 1. Zero-Knowledge: Verifier cannot know what is verified except true/false.
 2. Succinct: Proof needs to be short and can be verified quickly.
@@ -63,7 +63,7 @@ The process of converting a program to a proof is:
 You can apply many arithmetization techniques to convert a program to a proof. There are R1CS, Plonkish, AIR. You can also have different combination of proving scheme like Polynomial IOP and PCS in below diagram.
 
 ![Program to Proof](./assets/program-to-proof.png)
-[Source](https://zk-learning.org/assets/lecture12.pdf)
+[Source](https://rdi.berkeley.edu/zk-learning/assets/lecture14.pdf)
 
 There're really a lot of combinations like below taxonomy shows, but you don't need to know all of them at the moment.
 ![Taxonomy](./assets/taxonomy.png)
@@ -79,6 +79,17 @@ Groth16 is one of the famous zkSNARKs. Just remember that its biggest advantage 
 STARKs are a type of zero-knowledge proof system that is post-quantum secure. It usually involves larger proof size and faster proof size. There are two articles written by Vitalik that explain STARKs in detail. You can read them here:
 1. https://vitalik.eth.limo/general/2017/11/09/starks_part_1.html
 2. https://vitalik.eth.limo/general/2017/11/22/starks_part_2.html
+3. **Optional article**: https://vitalik.eth.limo/general/2018/07/21/starks_part_3.html
+
+
+####  Optional Resources (For Deepening Your Understanding)
+
+- **[Stark Anatomy](https://aszepieniec.github.io/stark-anatomy/)**  
+  This six-part tutorial series dives into the mechanics of the STARK proof system. It’s designed for a technically-inclined audience with a basic understanding of mathematics and programming.
+
+- **[Exploring Circle STARKs](https://vitalik.eth.limo/general/2024/07/23/circlestarks.html)**  
+  An introduction to Circle STARKs, an optimization that enhances the efficiency and scalability of STARK proofs using structured polynomial commitments.
+
 
 # 💪 Exercises
 
