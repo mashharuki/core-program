@@ -61,7 +61,7 @@ For a brief overview, watch this video: [Verify Private Data with TLSNotary Plug
 
 We also encourage you to take a look at the following:
 
-- [Explanatory Blog Post](https://pluto.xyz/blog/how-tlsnotary-works)
+- [Explanatory Blog Post](https://pluto.xyz/blog/web-proof-techniques-mpc-mode)
 - [GitHub Organization](https://github.com/tlsnotary)
 - [Main Website](https://tlsnotary.org/)
 
