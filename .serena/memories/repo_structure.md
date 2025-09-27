@@ -1,0 +1,1 @@
+トップ直下に年度別資料`2023/`,`2024/`,`2025/`と日本語訳`ja/`がある。`2023/`はMODULE_1〜8のMarkdown、`2024/`はweek0〜5等の週次Markdownと`assets/`,`contributions/`サブディレクトリ、`2025/`は現在空。`.github/`にIssue/PRテンプレート、`.gemini/`にエージェント向けメモ、`README.md`と`README_ja.md`がリポジトリ概要。

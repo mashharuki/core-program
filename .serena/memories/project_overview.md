@@ -1,0 +1,1 @@
+Core ProgramはPrivacy and Scaling Explorations (PSE) チームが公開するProgCrypto自習カリキュラムのリポジトリ。Zero-Knowledge Proofs、Fully Homomorphic Encryption、Multiparty Computationの基礎教材を年度別(2023/2024/2025)・言語別(英語/日本語)に整理し、暗号初心者の開発者がオープンソース貢献に向けて学べるようにしたドキュメント集。

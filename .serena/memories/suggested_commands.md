@@ -1,0 +1,5 @@
+- `ls` / `ls -R` : 年度別ディレクトリや対応する日本語訳フォルダの確認。
+- `rg "keyword" 2024` : 年度フォルダ内で特定トピックを検索。
+- `sed -n 'start,endp' path/to/file.md` : Markdownの一部だけをプレビュー。
+- `open README.md` (macOS) : ローカルプレビューやブラウザ確認。
+- `git status` / `git diff` : Markdown編集後の変更確認。
