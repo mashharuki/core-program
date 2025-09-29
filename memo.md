@@ -1104,9 +1104,9 @@ https://github.com/unirep/unirep/packages/circuits/circuits
 
 https://deepwiki.com/unirep/unirep
 
-```circom
+各サーキットの解説を依頼した時のDeepWikiのやりとり
 
-```
+https://deepwiki.com/search/bigcomparatorscircom_f91fc066-77ad-4141-b4c3-c4012805a5b7
 
 - 5. チュートリアル
 
@@ -1201,6 +1201,9 @@ RLN（Rate-Limiting Nullifier）のによって開発されたzk-gadget/プロ�
 https://github.com/Rate-Limiting-Nullifier/circom-rln
 
 https://deepwiki.com/Rate-Limiting-Nullifier/circom-rln
+
+回路の解読を依頼した時にDeepWiki
+
 
 - 5. チュートリアル
 

@@ -1,6 +1,10 @@
 # モジュール6 - 回路入門（Circom）
 
-モジュール4で学んだ通り、ZK 証明を作る最初のステップの一つは「問題を回路に変換する」ことです。回路記述には主に Circom と Halo2 があります。本モジュールでは学習資源が多い Circom にフォーカスし、基本的な回路を自分で書けるようになることを目標にします。
+モジュール4で学んだ通り、ZK 証明を作る最初のステップの一つは「問題を回路に変換する」ことです。
+
+回路記述には主に Circom と Halo2 があります。
+
+本モジュールでは学習資源が多い Circom にフォーカスし、基本的な回路を自分で書けるようになることを目標にします。
 
 ## 1. Circom を始める
 
@@ -18,7 +22,9 @@ Circom 2 の公式ドキュメントから、以下のページを読み動作�
 
 ## 2. Circom 速習 💪
 
-ここからは手を動かしつつ学びます。以下は ZK University（ZKU）の演習を元にした内容です（元の課題: https://zku.gnomio.com/mod/assign/view.php?id=117）。
+ここからは手を動かしつつ学びます。
+
+以下は ZK University（ZKU）の演習を元にした内容です（元の課題: https://zku.gnomio.com/mod/assign/view.php?id=117）。
 
 1. リポジトリを fork/clone: https://github.com/adrianmcli/week1
 2. `Q2` ディレクトリで `npm install`
