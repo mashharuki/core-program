@@ -562,3 +562,276 @@ https://arxiv.org/html/2408.00243v1
 https://arxiv.org/html/2502.07063v1
 https://www.computer.org/csdl/journal/tq/2023/06/10002421/1Jv6BEAupcA
 https://github.com/ventali/awesome-zk
+
+# Circomの仕様
+
+## Circom仕様調査メモ（2025-09-29調査）
+
+- CircomはRust製の算術回路DSLコンパイラで、`circom compile`一発で`*.r1cs`と`*.wasm`を生成し、旧C++版と同等の成果物互換性を維持しながらRust/WASMバイナリでワークフローを統一しています。
+- 言語の基礎要素は`template`・`component`・`signal`・`bus`で構成され、静的型検査で未接続や次元不一致をコンパイル時に検出、`assert`/`log`などのビルトインでデバッグを支援します。
+- Witness計算は生成された`witnesscalc`バイナリまたは`circuit_js`ディレクトリの`wasm`モジュールをNode.jsで呼び出す方式を採用し、snarkjsなど他ツールとの連携が容易です。
+- 2025年3月リリースのv2.2.2 “Baker”でglobal bus、Poseidon Sponge API刷新、新しい素数フィールド(`0x13e9...4cd`)が導入され、大規模回路の配線簡素化とハッシュ系ウィジェットの実装効率が向上しました。
+- 学習手順としてはRustlingsとモジュラー算術の復習→加算→Poseidon→Merkleパスと段階的に回路を実装しエクササイズごとに`assert`で検証→週末に制約数や依存関係をまとめてPR候補を整理する流れが推奨されます。
+
+### 最近のリリース
+| バージョン | 公開日 | 主な変更点 | 情報源 |
+| --- | --- | --- | --- |
+| v2.2.2 “Baker” | 2025-03-11 | global bus、Poseidon Sponge API刷新、新フィールド追加、wasmビルド改善 | Circom Release Notes 2025-03-11 |
+| v2.2.1 | 2025-02-12 | コンポーネント名解決の高速化、const評価安定化、ドキュメント更新 | Circom Release Notes 2025-02-12 |
+| v2.2.0 | 2025-01-23 | Rust実装の安定版、構文タグ、バス型と範囲チェック強化 | Circom Release Notes 2025-01-23 |
+
+### 参考リンク
+- https://github.com/iden3/circom/releases/tag/v2.2.2
+- https://github.com/iden3/circom
+- https://docs.circom.io/
+
+### Circom言語仕様詳細（v2.2系ベース）
+- **ファイルヘッダと依存管理**: 各ファイル冒頭で`pragma circom <version>;`を明示し、Circomコンパイラの互換バージョンを固定します。`include "path";`でテンプレートやユーティリティを再利用でき、グローバル名前空間には自動で衝突防止の命名規則が適用されます。
+- **シグナル定義**: `signal`は回路内ワイヤを表し、`signal input`がプライベート、`signal input public`が公開入力、`signal output`が出力です。一次元・多次元配列や`signal bus`（複数コンポーネントで共有する束）を使って複雑な配線を表現できます。
+- **演算子と制約**: `<==`は算術制約を生成し、右辺式を左辺シグナルに束縛します。`===`は左右の式が一致する追加制約、`<--`はバス接続を表現します。`var`や`const`はコンパイル時計算専用であり、シグナル値に依存できません。
+- **テンプレートとコンポーネント**: `template`で再利用可能な回路モジュールを定義し、パラメータは整数・型・タグなどを受け取れます。`component foo = Bar(params...);`でインスタンス化し、`component main = ...;`がエントリーポイントとなります。タグ(`component A as tag::name`)や`global bus`により大規模回路の接続管理が容易になりました。
+- **制御構造**: `for`/`while`/`if-else`/`switch`構文が用意され、ループ境界はコンパイル時計算可能な値に限定されます。これにより決定的に展開された回路が生成され、制約数を可視化できます。
+- **診断と整合性チェック**: `assert(expr, "message");`で条件を強制し、`log(...)`や`print(...)`でデバッグ情報を出力できます。`assert`は式が0/1に収束するようブール制約を暗黙生成します。
+
+#### サンプル実装
+```circom
+pragma circom 2.2.2;
+
+template MulGate() {
+    signal input left;
+    signal input right;
+    signal output product;
+    product <== left * right;
+}
+
+template WeightedCommitment(n) {
+    signal input public target;      // 公開される目標値
+    signal input values[n];          // プライベート入力
+    signal input weights[n];         // プライベート重み
+    signal output total;             // 計算結果を公開
+
+    signal prefix[n + 1];
+    prefix[0] <== 0;
+
+    component mult[n];
+    for (var i = 0; i < n; i++) {
+        mult[i] = MulGate();
+        mult[i].left <== values[i];
+        mult[i].right <== weights[i];
+        prefix[i + 1] <== prefix[i] + mult[i].product;
+    }
+
+    total <== prefix[n];
+    log("weighted total", total);
+    assert(total == target, "sum must match public target");
+}
+
+component main = WeightedCommitment(3);
+```
+- `MulGate`テンプレートを複数生成し、`for`ループで配列シグナルを展開しながら累積和を作る典型パターンです。
+- `signal input public`を用いることで、`target`が公開入力としてR1CSに出力されます。
+- `log`と`assert`でデバッグと整合性チェックを同時に実施します。
+
+### 追加参考ドキュメント
+- https://docs.circom.io/handbook/language/structure/
+- https://docs.circom.io/handbook/language/syntax/
+- https://docs.circom.io/handbook/language/control-flow/
+- https://docs.circom.io/handbook/language/components/
+- https://docs.circom.io/handbook/language/buses/
+
+# # Semaphore V4
+
+> Zero-knowledge protocol for anonymous group membership and signaling
+
+## Quick Reference
+
+### Core Concept
+Semaphore allows users to cast messages (votes, endorsements) as provable group members without revealing identity, with built-in double-signaling prevention.
+
+**Key Components:**
+- **Identity**: User's cryptographic identity (private key, public key, commitment)
+- **Group**: Merkle tree of identity commitments  
+- **Proof**: Zero-knowledge proof of group membership + message
+- **Nullifier**: Unique identifier preventing double-signaling
+- **Scope**: Topic/context that limits one proof per user
+
+### Essential Packages
+```bash
+# Core functionality
+npm install @semaphore-protocol/core
+
+# Individual packages
+npm install @semaphore-protocol/identity
+npm install @semaphore-protocol/group  
+npm install @semaphore-protocol/proof
+npm install @semaphore-protocol/contracts
+```
+
+## Common Patterns
+
+### 1. Identity Management
+```javascript
+import { Identity } from "@semaphore-protocol/identity"
+
+// Random identity
+const identity = new Identity()
+const { privateKey, publicKey, commitment } = identity
+
+// Deterministic identity (from secret)
+const deterministicIdentity = new Identity("secret-value")
+
+// Sign/verify messages
+const message = "Hello World"
+const signature = identity.signMessage(message)
+const isValid = Identity.verifySignature(message, signature, identity.publicKey)
+
+// Export/import
+const exported = identity.export() // base64 private key
+const imported = Identity.import(exported)
+```
+
+### 2. Group Operations
+```javascript
+import { Group } from "@semaphore-protocol/group"
+
+// Create group
+const group = new Group()
+const groupWithMembers = new Group([commitment1, commitment2])
+
+// Manage members
+group.addMember(identity.commitment)
+group.addMembers([commitment1, commitment2])
+group.removeMember(0) // sets to 0, doesn't change size
+group.updateMember(0, newCommitment)
+
+// Generate Merkle proof
+const merkleProof = group.generateMerkleProof(0)
+```
+
+### 3. Proof Generation & Verification
+```javascript
+import { generateProof, verifyProof } from "@semaphore-protocol/proof"
+
+// Generate proof
+const scope = group.root // or any unique scope
+const message = 1
+const proof = await generateProof(identity, group, message, scope)
+
+// Verify proof
+const isValid = await verifyProof(proof)
+```
+
+### 4. On-Chain Integration
+```solidity
+// Contract setup
+import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
+
+contract YourContract {
+    ISemaphore public semaphore;
+    uint256 public groupId;
+
+    constructor(ISemaphore _semaphore) {
+        semaphore = _semaphore;
+        groupId = semaphore.createGroup();
+    }
+
+    // Validate proof on-chain
+    function validateProof(ISemaphore.SemaphoreProof calldata proof) external {
+        semaphore.validateProof(groupId, proof);
+    }
+}
+```
+
+## Configuration Reference
+
+### Circuit Parameters
+- **MAX_DEPTH**: 1-32 (Merkle tree depth)
+- **Default proof validity**: 1 hour for old Merkle roots
+
+### Key Security Settings
+- **Identity reuse warning**: Same identity across groups compromises all groups
+- **Nullifier uniqueness**: Prevents double-signaling within same scope
+- **Message tampering**: Circuit calculates dummy square to prevent tampering
+
+## Troubleshooting
+
+### Common Issues
+
+**"Proof verification failed"**
+- Check group contains identity commitment
+- Verify scope matches between generation and verification
+- Ensure Merkle proof is current (within validity window)
+
+**"Nullifier already exists"**
+- User already submitted proof with this scope
+- Use different scope or implement nullifier tracking
+
+**"Identity commitment not found"**
+- Add identity to group before generating proof
+- Verify correct group is being used
+
+## Architecture Overview
+
+### Circuit Structure
+The Semaphore circuit proves three things:
+1. **Membership**: User belongs to group (Merkle proof verification)
+2. **Authorization**: Same user created message and proof (nullifier check)  
+3. **Message integrity**: Message hasn't been tampered with
+
+### Contract Architecture
+- **SemaphoreVerifier.sol**: Groth16 proof verification
+- **SemaphoreGroups.sol**: Group management (abstract)
+- **Semaphore.sol**: Complete implementation with proof validation
+
+## Extended Resources
+
+### 📚 Complete Guides
+- [Getting Started Tutorial](https://docs.semaphore.pse.dev/getting-started) - Full project setup with CLI
+- [Identities Deep Dive](https://docs.semaphore.pse.dev/guides/identities) - Advanced identity management
+- [Groups Management](https://docs.semaphore.pse.dev/guides/groups) - Comprehensive group operations
+- [Proof Generation](https://docs.semaphore.pse.dev/guides/proofs) - Detailed proof workflows
+
+### 🔧 Technical References  
+- [Semaphore V4 Specification](https://github.com/zkspecs/zkspecs/blob/main/specs/3/README.md) - Protocol specification
+- [Circuit Documentation](https://docs.semaphore.pse.dev/technical-reference/circuits) - Circuit internals
+- [Contract Reference](https://docs.semaphore.pse.dev/technical-reference/contracts) - Solidity implementation details
+- [Deployed Contracts](https://docs.semaphore.pse.dev/deployed-contracts) - Network addresses
+
+### 🛠️ Development Tools
+- [GitHub Repository](https://github.com/semaphore-protocol/semaphore) - Source code and examples  
+- [CLI Templates](https://github.com/semaphore-protocol/semaphore/tree/main/packages/cli) - Project boilerplates
+- [Boilerplate App](https://github.com/semaphore-protocol/boilerplate) - Complete example application
+
+### 🔐 Security & Audits
+- [Trusted Setup Ceremony](https://ceremony.pse.dev/projects/Semaphore%20V4%20Ceremony) - 400+ participants, July 2024
+- [Security Audits](https://docs.semaphore.pse.dev/#audits) - PSE and Veridise audit reports
+- [Best Practices Guide](https://docs.semaphore.pse.dev/) - Security considerations section
+
+### 🌐 Community & Support
+- [Documentation](https://docs.semaphore.pse.dev/) - Complete documentation
+- [GitHub Discussions](https://github.com/semaphore-protocol/semaphore/discussions) - Community support
+- [PSE Website](https://pse.dev/) - Privacy & Scaling Explorations team
+
+### 📊 Data & Indexing
+- [@semaphore-protocol/data](https://github.com/semaphore-protocol/semaphore/tree/main/packages/data) - On-chain data fetching
+- [Subgraph Templates](https://github.com/semaphore-protocol/semaphore/tree/main/packages/cli-template-monorepo-subgraph) - Graph Protocol integration
+
+## Quick Start Commands
+
+```bash
+# Create new project
+npx @semaphore-protocol/cli create my-app --template monorepo-ethers
+
+# Get on-chain groups
+semaphore get-groups --network sepolia
+
+# Deploy contract
+yarn deploy --semaphore <address> --group <id> --network sepolia
+```
+
+## Use Cases
+- **Private Voting**: Anonymous ballots with double-vote prevention
+- **Whistleblowing**: Anonymous reporting with verified membership
+- **Anonymous DAOs**: Governance without identity disclosure  
+- **Mixers**: Privacy-preserving value transfers
+- **Anonymous Authentication**: Prove membership without revealing identity
