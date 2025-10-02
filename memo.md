@@ -863,6 +863,10 @@ https://github.com/semaphore-protocol/semaphore
 
 https://deepwiki.com/semaphore-protocol/semaphore
 
+概要を解説したDeepWiki
+https://deepwiki.com/search/semaphoreno_d8a60d5e-bc23-407f-8949-484f746138ca
+
+
 ```circom
 pragma circom 2.1.5;
 
@@ -1136,6 +1140,38 @@ yarn contracts hardhat node
 yarn contracts deploy
 ```
 
+以下のようになればOK!
+
+```bash
+-----------------------------------------------------------------
+Epoch tree depth: 17
+State tree depth: 17
+History tree depth: 17
+Number of epoch keys per epoch: 3
+Total fields per user: 6
+Sum fields per user: 4
+Replacement field nonce bits: 48
+Replacement field data bits: 205
+-----------------------------------------------------------------
+Make sure these match what you expect!
+-----------------------------------------------------------------
+Deploying EpochKeyVerifier
+Deploying ReputationVerifier
+Deploying UserStateTransitionVerifier
+Deploying SignupVerifier
+Deploying EpochKeyLiteVerifier
+Deploying ScopeNullifierVerifier
+Deploying Unirep
+-----------------------------------------------------------------
+Bytecode size of Unirep: 17212 bytes
+Gas cost of deploying Unirep: 3599963
+Deployed to: 0x83cB6AF63eAfEc7998cC601eC3f56d064892b386
+-----------------------------------------------------------------
+Unirep app with epoch length 300 is deployed to 0x9A676e781A523b5d0C0e43731313A708CB607508
+Config written to /Users/harukikondo/git/core-program/sample/unirep-app/packages/relay/.env
+✨  Done in 2.35s.
+```
+
 Relayerサーバー起動
 
 ```bash
@@ -1147,6 +1183,11 @@ yarn relay start
 ```bash
 yarn frontend start
 ```
+
+- ユーザーの登録(グループへの参加)
+- ポイントをもらう(Request Data)
+- ユーザー状態遷移(User State Transition)
+- 自分のポイントを証明する(Prove Data)
 
 ##### RLN
 
@@ -1203,9 +1244,241 @@ https://github.com/Rate-Limiting-Nullifier/circom-rln
 https://deepwiki.com/Rate-Limiting-Nullifier/circom-rln
 
 回路の解読を依頼した時にDeepWiki
-
+https://deepwiki.com/search/rln_94f7ef2e-6cab-4858-8956-0cbbf5810424
 
 - 5. チュートリアル
+
+#### TLSNotary
+
+- 1. 動機と機能：何のために作られ、何を実現しますか？
+- 動機：なぜTLSだけでは不十分なのか？
+  - TLSNotaryが開発された最大の動機は、**「データの出所証明（Data Provenance）」と「プライバシー」**を両立させることです。
+  - 1. データの真正性の証明ができない (非否認性の欠如) 通常のTLS（HTTPSの「s」の部分）は、サーバーとユーザー（Prover）間の通信を盗聴や改ざんから守ります。しかし、このデータが「本物である」ということを第三者（Verifier/検証者）に証明する機能はありません。 これは、TLSが対称鍵暗号を使用しており、ユーザー（Prover）がサーバーと同じ秘密鍵を知っているためです。もしユーザーが悪意を持てば、データを改ざんした後で、対応する改ざん後のチェックサム（MAC）を自分で計算できてしまうからです。
+  - 2. 既存の共有方法の問題点 ユーザーがウェブサービスから取得したデータを他者に共有しようとする場合、OAuthなどの仕組みもありますが、これはアプリケーションが必要以上の情報にアクセスする権限を委任させてしまうことが多く、プライバシーの侵害や、サーバーによる監視・検閲のリスクがあります。また、そもそも多くのサーバーは他者へのデータアクセスを提供したがらないという問題もあります。
+- 機能：何を実現するか？
+  TLSNotaryは、**セキュアな多者間計算（MPC）とゼロ知識証明（ZKP）** を活用して、これらの課題を解決します
+
+  | 機能 | 詳細 |
+  |------|------|
+  | データの真正性保証 | 通常のTLS接続に検証者（Verifier）または公証人（Notary）を参加させる**多者間計算（MPC）**を用いることで、ユーザーが秘密鍵への単独アクセスを持つことを防ぎます。これにより、検証者は外部の信頼に依存せず、データの真正性を暗号学的に保証できます。 |
+  | 選択的開示（プライバシー保護） | ユーザー（Prover）は、証明したいデータの中から開示したい部分だけを選択し、それ以外の機密情報（リクエスト内容やデータの一部）は隠したまま、データの正しさを証明できます。この機能は、W3Cの検証可能なクレデンシャル（Verifiable Credentials）標準における「プレゼンテーション」という用語にインスパイアされています。 |
+  | ポータビリティの実現 | ユーザーは、ウェブサイトの許可を得ずに（パーミッションレスで）「このサーバーからこのデータを受け取った」という証明（Proof）を作成し、オフチェーンまたはオンチェーンで検証可能にし、データを真にポータブルにします。 |
+  | サーバーへの透明性 | TLSNotaryが介在していても、データを送信するウェブサーバー側から見ると、ユーザーとの接続は通常のTLS接続と変わりません。ウェブサービスの改変は必要ありません。 |
+
+- 2. ユースケース：非技術者にも説明できる実用例を挙げてください。
+- TLSNotaryは、「自分しか見られない、ウェブ上の重要な情報」について、**「その内容を他者に信じさせつつ、知られたくない情報は秘密にする」** ことを可能にします。
+- 実用例
+
+  | カテゴリ | 実用例（シナリオ） | 実現できること |
+  |----------|-------------------|----------------|
+  | 金融・資産証明 | ローンを組む際に、**「一定以上の資産を保有していること」**を証明したい。 | 銀行口座の詳細な残高を明かすことなく、必要な「閾値」を超えているという事実のみを証明できます。また、オンラインバンキングでの送金取引の事実を、ログイン情報やその他の機密情報を隠したまま証明できます。 |
+  | 身元・属性証明 | 特定の地域（例：東京都）の住民限定のサービスを利用したい。 | 具体的な自宅住所を公開することなく、**「東京都民であること」**など特定の条件のみを証明できます。また、オンラインの政府サービスから市民権や年齢を確認することにも使えます。 |
+  | 評判・経験の移行 | 新しいライドシェアサービス（Ponber）が、競合（Uber）の優良ドライバーに特典を与えたい。 | Uberのドライバーが自分のマイページにログインし、優良ドライバーであることを示す情報をUberの許可なく証明として作成し、Ponberに提出できます。この際、Uberの機密情報やドライバーの必要以上の個人情報はPonberに渡りません。AirbnbやStravaなどのプラットフォームでの経験や信頼性を確認する用途にも使えます。 |
+  | 健康・医療情報 | 保険会社に**「健康状態が良好であること」**を証明したい。 | 個人の医療記録（MyHealthなど）を公開せずに、健康診断結果や特定の病歴がないことなど、必要な情報のみを証明できます。 |
+  | オンチェーン連携 | 予測市場で、特定のYouTuberの登録者が10万人を超えるか否かを判定したい。 | 予測市場のようなオンチェーンプロダクトが、従来のオラクルではコストが高く提供できないような、特定のウェブサイト上のオフチェーンデータ（登録者数など）を安価かつ検証可能な形で取得し、判定に利用できます。 |
+
+- 3. ハードル：採用に向けた課題や改善点は？
+  - TLSNotary（zkTLS）は大きな可能性を秘めていますが、実用化に向けた課題がいくつか特定されています。これらは、主に技術的な制約、ユーザー体験（UX）の課題、法的な整理の必要性に分けられます。
+  
+  - 技術的な制約と改善点
+    - 課題
+      | 課題分類 | 詳細課題 | 改善点・対策 |
+      |----------|----------|--------------|
+      | **技術的制約** | **Web2サービスの仕様依存** | |
+      | | 証明の対象となるWeb2サービスがAPI仕様を変更した場合、zkTLSを利用するサービス側もメンテナンスが必要 | オンチェーンで検証を行う場合、コントラクトのアップグレードやガバナンスを考慮した設計が必要 |
+      | | **複数の証明生成の複雑さ** | |
+      | | Webページに表示されるデータが複数のAPIエンドポイントから取得される場合、TLSNotaryでは1つのTLS通信に対し1つのProofしか生成できないため、複数のProofを個別に作成する必要があり、実装が複雑 | より効率的な技術的な最適化が求められる。また、より効率的なMPCプロトコルの実装により、総データ転送量の削減が進行中 |
+      | | **大きな通信オーバーヘッド** | |
+      | | underlyingの多者間計算（MPC）の性質上、検証者と証明者間の通信帯域が、サーバーから受信するデータサイズよりも大幅に大きくなる（例：100KBのレスポンスに対して約39MBのアップロードデータ） | 2025年に予定されているプロトコルのアップグレードで、より効率的なMPCプロトコルが導入され、総データ転送量の減少が期待 |
+      | | **対応範囲の限定** | |
+      | | 現時点では、Proof生成の対象はWebブラウザを通じてログイン可能なサービスに限定されており、ネイティブアプリや特定のデバイスからのデータには対応不可 | 将来的には対応範囲の拡大が期待される |
+      | | **TLSバージョンのサポート** | |
+      | | 現在、TLSNotaryはTLS 1.2をサポートしているが、TLS 1.3のサポートは未対応 | TLS 1.3のサポートはロードマップに含まれている |
+      | **セキュリティ・プライバシー** | **匿名性と再利用性の問題** | |
+      | | 多くのユースケースでは、Proofにユーザー識別要素が含まれていないと、Proofが第三者に使い回されるリスクが発生 | 匿名性（アンチシビル）を保ちつつ、Proofにある程度のユーザー識別要素を含める必要がある |
+
+    - 改善点
+      | 課題分類 | 詳細課題 | 改善点・対策 |
+      |----------|----------|--------------|
+      | **ユーザー体験（UX）** | **導入のハードル** | |
+      | | Proofを作成するためには、ブラウザ拡張機能またはスマホネイティブアプリの導入が必要です。ブラウザ拡張機能はPC依存でインストールが必要であり、スマホアプリは再ログインが必要でダウンロードの手間がかかります。 | ユーザーのストレスを軽減するため、App Clip（軽量版アプリ）の採用など、インストールや再ログインの手間を軽減する工夫が他プロトコルで試みられています。 |
+      | | **Proof生成時間** | |
+      | | ZK Proofの生成は計算負荷が高く、一定の処理時間を要するため、ユーザーに待機時間が発生します。デバイス性能やネットワーク環境にも依存します。 | ユーザーの不安を和らげるために、待機中に分かりやすく工夫されたUI/UXが重要となります。技術的な最適化による計算速度の向上が継続的に求められます。 |
+
+    - 法的な整理の必要性
+      - 技術的にはあらゆるウェブデータを証明可能ですが、企業が保有する知的財産（IP）の観点から、法的なグレーゾーンが存在します。
+      - zkTLSは、ユーザーがプラットフォーム上で生成したデータ（視聴履歴、フォロー、購入履歴など）といった**「正当にユーザーのものであるデータ」**を守るために活用されるべきです。
+      - 企業に正当な所有権があるデータやアルゴリズム（例：Spotifyのトップアーティスト、企業のレコメンデーションアルゴリズムなど）に対して、ユーザーが許可なくzkTLSを使用すべきではないという線引きが必要です。**「ユーザーのデータとして扱うべきか、企業のデータとして扱うべきか」** の曖昧な領域について、法的な整理を進めることが、zkTLSの健全な普及に不可欠です。
+
+### WeeK6
+
+以下のコマンドでまずサーキットをコンパイルする
+
+```bash
+chmod +x ./scripts/compile-HelloWorld.sh
+./scripts/compile-HelloWorld.sh
+```
+
+#### 2.1 Trusted Setup
+
+- 1. `HelloWorld.circom` の回路は何をしますか？
+
+  aとbを掛け合わせて出力するだけのシンプルな回路
+
+  ```circom
+  pragma circom 2.0.0;
+
+  /*This circuit template checks that c is the multiplication of a and b.*/  
+  template Multiplier2 () {  
+
+    // Declaration of signals.  
+    signal input a;  
+    signal input b;  
+    signal output c;  
+
+    // Constraints.  
+    c <== a * b;  
+  }
+
+  component main = Multiplier2();
+  ```
+
+2. Phase 1（Powers of Tau）とは？
+   - 複数の人がランダム性を寄与し共通参照文字列（CRS）の基盤を生成する MPC セレモニー。  
+   - 中間値（toxic waste）を適切に破棄することが安全性の鍵。
+
+3. Phase 1 と Phase 2 の違いは？
+   - **Phase 1 は汎用** 
+   - **Phase 2 は回路固有**。
+
+#### 2.2 非二次制約（Non-Quadratic Constraints）
+
+1. `compile-Multiplier3-groth16.sh`の実装
+
+  ```bash
+  chmod +x ./scripts/compile-Multiplier3-groth16.sh
+  ./scripts/compile-Multiplier3-groth16.sh
+  ```
+
+2. `error[T3001]` の意味
+  - Circom の制約は二次までとなっている。
+  - 3項積を一度に置くと非二次制約になりエラーとなる。
+  - 中間信号で2回に分ける必要がある。
+
+3. 以下のように修正する
+
+  ```circom
+  pragma circom 2.0.0;
+
+  // [assignment] Modify the circuit below to perform a multiplication of three signals
+  template Multiplier3 () {  
+
+    // Declaration of signals.  
+    signal input a;  
+    signal input b;
+    signal input c;
+    signal output d;  
+
+    // 中間信号用の変数
+    signal temp;
+
+    // Constraints.  
+    temp <== a * b;
+    d <== temp * c;
+  }
+
+  component main = Multiplier3();
+  ``` 
+
+#### 2.3 Groth16 と PLONK
+
+- 1. 今度は Gloth16ではなくPLONKを使ってコンパイルするスクリプトを作る
+
+  - PLONK は Phase 2 の（回路固有）寄与が不要。構築フローや zkey 形式が Groth16 と異なる。
+  - コントラクトサイズの違い
+    - Gloth16の方は170行くらい
+    - PLONKの方は700行くらい
+
+    ```sh
+    #!/bin/bash
+
+    # Multiplier3.circomをPLONK証明システム用にコンパイルおよびセットアップするスクリプト
+
+    # ----------------------------------------------------
+    # 1. 環境設定
+    # ----------------------------------------------------
+    cd contracts/circuits
+
+    # 回路ディレクトリの作成
+    mkdir -p Multiplier3
+
+    # powersOfTau28_hez_final_14.ptau (普遍的なトラステッドセットアップ)のダウンロード
+    if [ -f ./powersOfTau28_hez_final_14.ptau ]; then
+        echo "powersOfTau28_hez_final_14.ptau がすでに存在します。スキップします。"
+    else
+        echo 'Downloading powersOfTau28_hez_final_14.ptau'
+        # Hermezのptauファイルを使用
+        wget https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_14.ptau
+    fi
+
+    echo "Compiling Multiplier3.circom..."
+
+    # ----------------------------------------------------
+    # 2. 回路のコンパイル
+    # ----------------------------------------------------
+    # R1CS、WASM、SYMファイルを生成
+    circom Multiplier3.circom --r1cs --wasm --sym -o Multiplier3
+
+    # R1CSの情報を表示
+    snarkjs r1cs info Multiplier3/Multiplier3.r1cs
+
+    # ----------------------------------------------------
+    # 3. PLONKのセットアップ（ZKeyの作成）
+    # ----------------------------------------------------
+    echo "Starting PLONK setup and generating initial zkey..."
+
+    # Groth16の代わりにplonk setupを使用
+    # R1CSファイルとptauファイルから最初のZKeyファイルを生成
+    snarkjs plonk setup Multiplier3/Multiplier3.r1cs powersOfTau28_hez_final_14.ptau Multiplier3/circuit_0000.zkey
+
+    # ----------------------------------------------------
+    # 4. ZKeyの確定
+    # ----------------------------------------------------
+    echo "Renaming zkey file. Contribution is not required for PLONK."
+
+    # PLONKでは普遍的なSRSが使用されるため、Groth16のような個別の貢献フェーズは不要です。
+    # 0000.zkeyをfinal.zkeyにリネームして、以降のコマンドで使用します。
+    mv Multiplier3/circuit_0000.zkey Multiplier3/circuit_final.zkey
+
+    # ----------------------------------------------------
+    # 5. 検証キーの生成とエクスポート
+    # ----------------------------------------------------
+    echo "Exporting verification key..."
+
+    snarkjs zkey export verificationkey Multiplier3/circuit_final.zkey Multiplier3/verification_key.json
+
+    # ----------------------------------------------------
+    # 6. Solidity PLONK Verifierコントラクトの生成
+    # ----------------------------------------------------
+    echo "Exporting PLONK Verifier Solidity Contract..."
+
+    # Groth16の代わりにplonkverifierコマンドを使用
+    # コントラクト名も 'Multiplier3VerifierPlonk.sol' に変更して区別しやすくします
+    snarkjs zkey export solidityverifier Multiplier3/circuit_final.zkey ../Multiplier3VerifierPlonk.sol
+
+    echo "PLONK setup for Multiplier3 is complete."
+    cd ../..
+    ```
+
+#### 2.4 検証とテスト
+
+まず以下のコマンドでバージョン情報をあげてテストコマンドを実装
+
+```bash
+npm run test
+```
+
+#### 2.5 回路ライブラリ
 
 ## 2024年分の回答
 
