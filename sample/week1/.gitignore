@@ -7,7 +7,6 @@ typechain
 #Hardhat files
 cache
 artifacts
-*.sol
 *.ptau
 Q2/contracts/circuits/Multiplier3
 Q2/contracts/circuits/HelloWorld
@@ -15,4 +14,8 @@ Q2/contracts/circuits/Multiplier3Plonk
 Q2/contracts/circuits/RangeProof
 Q2/contracts/circuits/Multiplier3_plonk
 Q2/contracts/circuits/Sudoku
+Q2/contracts/circuits/PreimageProof
+Q2/contracts/circuits/SimplePublicKeyProof
+Q2/contracts/circuits/PublicKeyProof
+Q2/contracts/circuits/EllipticCurvePublicKeyProof
 Q3/contracts/bonus/SystemOfEquations
