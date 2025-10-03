@@ -18,4 +18,5 @@ Q2/contracts/circuits/PreimageProof
 Q2/contracts/circuits/SimplePublicKeyProof
 Q2/contracts/circuits/PublicKeyProof
 Q2/contracts/circuits/EllipticCurvePublicKeyProof
+Q2/contracts/circuits/MerkleTreeMembership
 Q3/contracts/bonus/SystemOfEquations

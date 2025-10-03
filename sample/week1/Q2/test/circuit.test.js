@@ -2,6 +2,7 @@ const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
 const { groth16, plonk } = require("snarkjs");
 const { poseidon1 } = require("poseidon-lite");
+const { buildPoseidon } = require("circomlibjs");
 
 const wasm_tester = require("circom_tester").wasm;
 
@@ -541,5 +542,105 @@ describe("PublicKeyProof", function () {
         let c = [0, 0];
         let d = [0]
         expect(await verifier.verifyProof(a, b, c, d)).to.be.false;
+    });
+});
+
+describe("MerkleTreeMembershipVerifier", function () {
+    beforeEach(async function () {
+        // Verifier Contract インスタンスを生成
+        Verifier = await ethers.getContractFactory("MerkleTreeMembershipVerifier");
+        verifier = await Verifier.deploy();
+        await verifier.deployed();
+    });
+
+    it("Circuit should verify Merkle tree membership correctly", async function () {
+        const poseidon = await buildPoseidon();
+        const F = poseidon.F;
+
+        // リーフ（メンバーのID）
+        // リーフ（メンバーのID）- depth=4なので16個のリーフが必要
+        const leaves = [];
+        for (let i = 0; i < 16; i++) {
+            leaves.push(F.e(String(100 + i))); // 100, 101, 102, ...
+        }
+
+        // マークルツリーを構築（depth=4）
+        // レベル0: 16個のリーフ
+        // レベル1: 8個のノード
+        const level1 = [];
+        for (let i = 0; i < 8; i++) {
+            level1.push(poseidon([leaves[i * 2], leaves[i * 2 + 1]]));
+        }
+
+        // レベル2: 4個のノード
+        const level2 = [];
+        for (let i = 0; i < 4; i++) {
+            level2.push(poseidon([level1[i * 2], level1[i * 2 + 1]]));
+        }
+
+        // レベル3: 2個のノード
+        const level3 = [];
+        for (let i = 0; i < 2; i++) {
+            level3.push(poseidon([level2[i * 2], level2[i * 2 + 1]]));
+        }
+
+        // レベル1のノードをハッシュ化
+        const root = poseidon(level3);
+
+        /*
+                     Root
+                    /    \
+            level1[0] level1[1]
+                /  \      /  \
+            Alice Bob Carol David
+            (0)   (1)  (2)   (3)
+        */
+
+        // インデックス1のリーフ（101）を証明
+        // インデックス1 = 二進数で 0001（右、左、左、左）
+        const leafIndex = 1;
+        const leaf = leaves[leafIndex];
+
+        // マークルパスを計算
+        // レベル0: インデックス1は右側 → 兄弟はインデックス0（左）
+        // レベル1: ペアインデックス0は左側 → 兄弟はインデックス1（右）
+        // レベル2: ペアインデックス0は左側 → 兄弟はインデックス1（右）
+        // レベル3: ペアインデックス0は左側 → 兄弟はインデックス1（右）
+        const pathElements = [
+            F.toString(leaves[0]),      // レベル0: インデックス0とペア
+            F.toString(level1[1]),      // レベル1: インデックス1とペア
+            F.toString(level2[1]),      // レベル2: インデックス1とペア
+            F.toString(level3[1])       // レベル3: インデックス1とペア
+        ];
+
+        const pathIndices = [1, 0, 0, 0];  // 右、左、左、左
+        
+        // ZK Proofを生成する
+        const { 
+            proof, 
+            publicSignals 
+        } = await groth16.fullProve(
+            {
+                "leaf": F.toString(leaf),
+                "pathElements": pathElements,
+                "pathIndices": pathIndices,
+                "root": F.toString(root)
+            }, 
+            "contracts/circuits/MerkleTreeMembership/MerkleTreeMembership_js/MerkleTreeMembership.wasm",
+            "contracts/circuits/MerkleTreeMembership/circuit_final.zkey"
+        );
+
+        // プルーフとパブリックシグナルをSolidityコントラクトで使用できる形式に変換
+        const calldata = await groth16.exportSolidityCallData(proof, publicSignals);
+        // コールデータを作成
+        const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
+    
+        const a = [argv[0], argv[1]];
+        const b = [[argv[2], argv[3]], [argv[4], argv[5]]];
+        const c = [argv[6], argv[7]];
+        const Input = argv.slice(8);
+        // コントラクトのverifyProof関数を呼び出し、ZKProofが正しいか検証する
+        // 問題なければtrueが返ってくるはず
+        expect(await verifier.verifyProof(a, b, c, Input)).to.be.true;
     });
 });
