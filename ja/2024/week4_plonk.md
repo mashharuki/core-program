@@ -1,13 +1,16 @@
  # Week 4 - PLONK
  
- Week 0 で Rustlings を完了している前提です。今週の必須課題は「PLONK についてのブログ記事を公開し、グループで発表する」ことです。
+ Week 0 で Rustlings を完了している前提です。 
+ 
+ 今週の必須課題は「PLONK についてのブログ記事を公開し、グループで発表する」ことです。
  
  ## 学習
  
  ZK を学ぶ際は、まず PLONK から入るのが推奨です。最初は Vitalik のブログを通読しましょう：
  - https://vitalik.eth.limo/general/2019/09/22/plonk.html
  
- ここで、広く使われる plonkish スタイルの算術化について大づかみに理解します。全てを一度で理解する必要はありませんが、次の図の意味は把握しておきましょう：
+ ここで、広く使われる plonkish スタイルの算術化について大づかみに理解します。  
+ 全てを一度で理解する必要はありませんが、次の図の意味は把握しておきましょう：
  
  ![Vitalik's circuit](./assets/vitalik-circuit.png)
  

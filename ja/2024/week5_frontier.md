@@ -1,14 +1,20 @@
  # Week 5 - フロンティア技術
  
- 最終週は、PLONK の継続学習に加えて、MPC / FHE、TLSNotary、ZKEmail といった最前線の話題を自律的に探索します。トピックは急速に進化しているため、ここでは基礎に留めます。
+ 最終週は、PLONK の継続学習に加えて、MPC / FHE、TLSNotary、ZKEmail といった最前線の話題を自律的に探索します。
+ 
+ トピックは急速に進化しているため、ここでは基礎に留めます。
  
  ## MPC / FHE
  
- ZKP・MPC・FHE は相互に重なり合う分野です。ZKP を学んだうえで MPC / FHE の視点を得ると理解が深まります。
+ ZKP・MPC・FHE は相互に重なり合う分野です。  
+ ZKP を学んだうえで MPC / FHE の視点を得ると理解が深まります。
  
  ### Multi-Party Computation（MPC）
  
- 入力を秘匿したまま関数値を共同計算する枠組み。古典例は Yao の百万長者問題。Trusted Setup の CRS を分散生成する用途にも使われます。
+ 入力を秘匿したまま関数値を共同計算する枠組み。  
+ 古典例は Yao の百万長者問題。
+ 
+ **Trusted Setup の CRS を分散生成する用途にも使われます**。
  
  - PSE ブログ（導入）: https://mirror.xyz/privacy-scaling-explorations.eth/v_KNOV_NwQwKV0tb81uBS4m-rbs-qJGvCx7WvwP4sDg
  - 動画（5:43）: https://www.youtube.com/watch?v=90jcXCHsBF0
@@ -40,7 +46,9 @@
  
  ## TLSNotary
  
- Web サーバから受け取ったデータの「真正性（出所）」を、内容を第三者に見せることなく証明するプロトコル。MPC によりプライバシーを保ちながらデータ由来を証明します。
+ Web サーバから受け取ったデータの「真正性（出所）」を、内容を第三者に見せることなく証明するプロトコル。
+ 
+ MPC によりプライバシーを保ちながらデータ由来を証明します。
  
  - 概要動画: https://www.youtube.com/watch?v=SDjmjiqmUFw
  - ブログ: https://pluto.xyz/blog/web-proof-techniques-mpc-mode
@@ -49,7 +57,8 @@
  
  ## ZKEmail
  
- メールと DKIM を ZK と組み合わせるプロジェクト。メールをウォレットのように使う、P2P 的な転送など新しい応用が開けます。
+ メールと DKIM を ZK と組み合わせるプロジェクト。  
+ メールをウォレットのように使う、P2P 的な転送など新しい応用が開けます。
  
  - 動画（11:40）: https://www.youtube.com/watch?v=3jCKdxQ9Pfw
  - 技術解説ブログ: https://blog.aayushg.com/zkemail/
