@@ -3,6 +3,7 @@ const { ethers } = require("hardhat");
 const { groth16, plonk } = require("snarkjs");
 const { poseidon1 } = require("poseidon-lite");
 const { buildPoseidon } = require("circomlibjs");
+const { MerkleTree } = require("./helper");
 
 const wasm_tester = require("circom_tester").wasm;
 
@@ -642,5 +643,179 @@ describe("MerkleTreeMembershipVerifier", function () {
         // コントラクトのverifyProof関数を呼び出し、ZKProofが正しいか検証する
         // 問題なければtrueが返ってくるはず
         expect(await verifier.verifyProof(a, b, c, Input)).to.be.true;
+    });
+});
+
+describe("GroupMembership", function () {
+
+    let poseidon;
+
+    // テスト用のユーザーデータ(年齢属性付き)
+    const users = [
+        { secret: 12345n, attribute: 25n },  // ユーザー0: secret=12345, age=25
+        { secret: 67890n, attribute: 30n },  // ユーザー1: secret=67890, age=30
+        { secret: 11111n, attribute: 45n },  // ユーザー2: secret=11111, age=45
+        { secret: 22222n, attribute: 18n },  // ユーザー3: secret=22222, age=18
+    ];
+
+    beforeEach(async function () {
+        // Poseidonハッシュ関数を初期化
+        poseidon = await buildPoseidon();
+
+        // Verifier Contract インスタンスを生成
+        Verifier = await ethers.getContractFactory("GroupMembershipVerifier");
+        verifier = await Verifier.deploy();
+        await verifier.deployed();
+    });
+
+    // ============================================
+    // ヘルパー関数: リーフハッシュを計算
+    // ============================================
+    function calculateLeafHash(secret, attribute) {
+        const hash = poseidon([BigInt(secret), BigInt(attribute)]);
+        return poseidon.F.toString(hash);
+    }
+
+    // ============================================
+    // ヘルパー関数: ヌリファイアを計算
+    // ============================================
+    function calculateNullifier(secret, nullifierSeed) {
+        const hash = poseidon([BigInt(secret), BigInt(nullifierSeed)]);
+        return poseidon.F.toString(hash);
+    }
+
+    // ============================================
+    // ヘルパー関数: コミットメントを計算
+    // ============================================
+    function calculateCommitment(secret, attribute) {
+        const hash = poseidon([BigInt(secret), BigInt(attribute)]);
+        return poseidon.F.toString(hash);
+    }
+
+    // ============================================
+    // ヘルパー関数: Merkleツリーを構築
+    // ============================================
+    function buildMerkleTree(users, depth) {
+        // マークルツリークラスの初期化
+        const tree = new MerkleTree(depth, poseidon);
+        
+        // 各ユーザーのリーフハッシュを計算して追加
+        for (const user of users) {
+            const leafHash = calculateLeafHash(user.secret, user.attribute);
+            tree.addLeaf(leafHash);
+        }
+        
+        tree.build();
+        return tree;
+    }
+
+    // ============================================
+    // ヘルパー関数: ZK証明を生成
+    // ============================================
+    async function generateProof(input) {
+        // 証明を生成
+        const { proof, publicSignals } = await groth16.fullProve(
+            input,
+            "contracts/circuits/GroupMembership/GroupMembership_js/GroupMembership.wasm",
+            "contracts/circuits/GroupMembership/circuit_final.zkey"
+        );
+
+        // Solidityで検証可能な形式に変換
+        const calldata = await groth16.exportSolidityCallData(proof, publicSignals);
+        const argv = calldata.replace(/["[\]\s]/g, "").split(',');
+
+        const a = [argv[0], argv[1]];
+        const b = [[argv[2], argv[3]], [argv[4], argv[5]]];
+        const c = [argv[6], argv[7]];
+        const publicInputs = argv.slice(8);
+
+        return { proof: { a, b, c }, publicInputs };
+    }
+
+    it("Should return true for correct proof", async function () {
+        // Merkleツリーの深さ
+        const depth = 4; 
+        // アクション固有のID（例: 投票ID）
+        const nullifierSeed = 99999n; 
+
+        // ステップ1: Merkleツリーを構築
+        const tree = buildMerkleTree(users, depth);
+        const root = tree.getRoot();
+
+        // ステップ2: ユーザー0の証明を生成
+        // 最初のユーザーで投票するが年齢やユーザーシークレットそのものを明かすことなく検証する
+        // そのユーザーが条件を満たしかつ投票したことを証明できる
+        const userIndex = 0;
+        const user = users[userIndex];
+        const { pathElements, pathIndices } = tree.getProof(userIndex);
+
+        // 証明生成用の入力
+        const input = {
+            userSecret: user.secret.toString(),
+            userAttribute: user.attribute.toString(),
+            pathElements: pathElements,
+            pathIndices: pathIndices,
+            root: root,
+            nullifierSeed: nullifierSeed.toString()
+        };
+
+        // ステップ3: ZK証明を生成
+        const { proof, publicInputs } = await generateProof(input);
+
+        // 期待される値を計算
+        const expectedNullifier = calculateNullifier(user.secret, nullifierSeed);
+        const expectedCommitment = calculateCommitment(user.secret, user.attribute);
+        
+        console.log("Expected nullifier:", expectedNullifier);
+        console.log("Actual nullifier:", publicInputs[2]);
+        console.log("Expected commitment:", expectedCommitment);
+        console.log("Actual commitment:", publicInputs[3]);
+
+        // 検証する
+        const result = await verifier.verifyProof(
+            proof.a,
+            proof.b,
+            proof.c,
+            publicInputs
+        );
+
+        expect(result).to.be.true;
+    });
+
+    it("Should verify proof for different users with same tree", async function () {
+        const depth = 4;
+        const nullifierSeed = 88888n;
+
+        // 同じツリーを使用
+        const tree = buildMerkleTree(users, depth);
+        const root = tree.getRoot();
+
+        // ユーザー1とユーザー2の証明を検証
+        for (const userIndex of [1, 2]) {
+
+            const user = users[userIndex];
+            const { pathElements, pathIndices } = tree.getProof(userIndex);
+            // それぞれinputデータを用意する
+            const input = {
+                userSecret: user.secret.toString(),
+                userAttribute: user.attribute.toString(),
+                pathElements: pathElements,
+                pathIndices: pathIndices,
+                root: root,
+                nullifierSeed: nullifierSeed.toString()
+            };
+
+            // ZK Proofを生成する
+            const { proof, publicInputs } = await generateProof(input);
+            // ZK Proofを検証する
+            const result = await verifier.verifyProof(
+                proof.a,
+                proof.b,
+                proof.c,
+                publicInputs
+            );
+
+            expect(result).to.be.true;
+        }
     });
 });
